@@ -16,6 +16,7 @@ Untouched (period), Backlog (all-time), SQL, Canvassing, Lost (Engaged),
 Overnight 8PM–8AM, % Capacity, % Response, % SQL/Engaged, % SQL/MQL.
 
 **Charts**
+
 - SQL Countdown vs daily target with progress bar
 - SQL Ranking by Sales Support
 - Engagement Performance (1st / 2nd / 3rd attempt)
@@ -25,6 +26,7 @@ Overnight 8PM–8AM, % Capacity, % Response, % SQL/Engaged, % SQL/MQL.
 - Conversion Trend (Week-on-Week / Month-on-Month)
 
 **Tables**
+
 - Active For-Callback Leads (per SS)
 - Canvassing leads also flagged for callback
 - Aging Canvassing Leads (>30 days idle)
@@ -95,12 +97,14 @@ This repo includes [`render.yaml`](render.yaml) for one-click deployment.
 5. Render gives you a URL like `https://sales-support-dashboard.onrender.com`.
 
 **Free tier notes**
+
 - Service sleeps after 15 min of inactivity; first request after sleep takes
   ~30 sec to wake. For an always-on dashboard, upgrade to the **Starter** plan
   ($7/mo) or hit the URL with an uptime monitor.
 - Render auto-provisions HTTPS.
 
 **Restricting access** — Render free tier doesn't include built-in auth. Options:
+
 - Put Cloudflare in front and use Cloudflare Access (free for ≤50 users).
 - Add HTTP Basic Auth in Flask (10-line snippet, ask if you want it).
 - Upgrade to Render's Pro plan and use IP allowlists.
@@ -111,29 +115,29 @@ This repo includes [`render.yaml`](render.yaml) for one-click deployment.
 
 Edit the top of `sales_support_dashboard.py` to tune:
 
-| Constant | Default | Meaning |
-|---|---|---|
-| `STAGE_SQL` | 69 | Odoo stage ID for "03 SQL" |
-| `STAGE_CANVASS` | 72 | Stage ID for "02A Canvassing" |
-| `TEAM_SS` | 11 | `crm.team` ID for Sales Support |
-| `TAG_DUPLICATE` / `TAG_SIMILAR` | 36 / 116 | Tag IDs for duplicate detection |
-| `CAPACITY_PER_SS` | 60 | Daily lead capacity per rep |
-| `SQL_TARGET_DAY` | 5 | Daily SQL target per rep |
-| `AGING_THRESHOLD` | 30 | Days before a canvassing lead is "aging" |
+| Constant                        | Default  | Meaning                                  |
+| ------------------------------- | -------- | ---------------------------------------- |
+| `STAGE_SQL`                     | 69       | Odoo stage ID for "03 SQL"               |
+| `STAGE_CANVASS`                 | 72       | Stage ID for "02A Canvassing"            |
+| `TEAM_SS`                       | 11       | `crm.team` ID for Sales Support          |
+| `TAG_DUPLICATE` / `TAG_SIMILAR` | 36 / 116 | Tag IDs for duplicate detection          |
+| `CAPACITY_PER_SS`               | 60       | Daily lead capacity per rep              |
+| `SQL_TARGET_DAY`                | 5        | Daily SQL target per rep                 |
+| `AGING_THRESHOLD`               | 30       | Days before a canvassing lead is "aging" |
 
 ---
 
 ## Required Odoo Studio fields on `crm.lead`
 
-| Python constant | Odoo field | Type |
-|---|---|---|
-| `F_SS` | `x_studio_crm_sales_support` | many2one → `crm.team.member` |
-| `F_EA1` | `x_studio_crm_salessupport_engagement_activity_1` | selection |
-| `F_EA2` | `x_studio_crm_salessupport_engagement_activity_2` | selection |
-| `F_EA3` | `x_studio_crm_support_engagement_activity_3` | selection |
-| `F_ATT1..3` | `x_studio_crm_salessupport_{1st,2nd,3rd}_attempt` | datetime |
-| `F_HANDOVER` | `x_studio_crm_salessupport_handover_date` | datetime |
-| `F_TEAM` | `x_studio_crm_team_name` | selection |
+| Python constant | Odoo field                                        | Type                         |
+| --------------- | ------------------------------------------------- | ---------------------------- |
+| `F_SS`          | `x_studio_crm_sales_support`                      | many2one → `crm.team.member` |
+| `F_EA1`         | `x_studio_crm_salessupport_engagement_activity_1` | selection                    |
+| `F_EA2`         | `x_studio_crm_salessupport_engagement_activity_2` | selection                    |
+| `F_EA3`         | `x_studio_crm_support_engagement_activity_3`      | selection                    |
+| `F_ATT1..3`     | `x_studio_crm_salessupport_{1st,2nd,3rd}_attempt` | datetime                     |
+| `F_HANDOVER`    | `x_studio_crm_salessupport_handover_date`         | datetime                     |
+| `F_TEAM`        | `x_studio_crm_team_name`                          | selection                    |
 
 Selection values for Engagement Activity 1/2/3: **Engaged**, **For Callback**, **No Answer**.
 

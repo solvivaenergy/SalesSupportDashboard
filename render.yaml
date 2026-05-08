@@ -14,5 +14,9 @@ services:
         sync: false
       - key: ODOO_API_KEY
         sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: FLASK_SECRET_KEY
+        generateValue: true
       - key: PYTHON_VERSION
         value: 3.11.9

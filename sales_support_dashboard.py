@@ -9,13 +9,18 @@ Auto-refreshes every 5 minutes.  Fetches live data from Odoo via XML-RPC.
 import os
 import sys
 import json
+import hmac
+import secrets
 from datetime import datetime, date, timedelta
 from collections import defaultdict
 
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 from odoo_client import xmlrpc_execute
-from flask import Flask, jsonify, request as freq, render_template_string
+from flask import (
+    Flask, jsonify, request as freq, render_template_string,
+    session, redirect, url_for, abort,
+)
 
 # ── Odoo connection ──────────────────────────────────────────────────────────
 URL = os.getenv("ODOO_URL", "https://solviva-energy.odoo.com")
@@ -463,6 +468,55 @@ def fetch_trend(mode, ss_filter, team_filter="all"):
 # ── Flask app ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 
+# ── Server-side password gate ────────────────────────────────────────────────
+# Set APP_PASSWORD in env (or .env). If unset, the dashboard is open (dev mode).
+# FLASK_SECRET_KEY signs the session cookie; auto-generated if not provided
+# (sessions invalidate on restart, which is fine).
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")
+app.config.update(
+    SECRET_KEY=os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.getenv("RENDER", "") != "" or os.getenv("FORCE_HTTPS", "") == "1",
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
+)
+
+PUBLIC_ENDPOINTS = {"login", "static"}
+
+@app.before_request
+def _require_login():
+    if not APP_PASSWORD:
+        return  # auth disabled (local dev)
+    if freq.endpoint in PUBLIC_ENDPOINTS:
+        return
+    if session.get("authed"):
+        return
+    if freq.path.startswith("/api/"):
+        return jsonify({"error": "unauthorized"}), 401
+    return redirect(url_for("login", next=freq.path))
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if freq.method == "POST":
+        pw = freq.form.get("password", "")
+        if APP_PASSWORD and hmac.compare_digest(pw, APP_PASSWORD):
+            session.clear()
+            session["authed"] = True
+            session.permanent = True
+            nxt = freq.args.get("next") or freq.form.get("next") or "/"
+            if not nxt.startswith("/"):
+                nxt = "/"
+            return redirect(nxt)
+        error = "Incorrect password."
+    nxt = freq.args.get("next", "/")
+    return render_template_string(LOGIN_HTML, error=error, next=nxt), (401 if error else 200)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
 @app.route("/")
 def index():
     return render_template_string(HTML)
@@ -494,6 +548,62 @@ def api_trend():
 @app.route("/api/teams")
 def api_teams():
     return jsonify({"teams": TEAM_OPTIONS})
+
+# ── Login HTML ────────────────────────────────────────────────────────────────
+LOGIN_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Sales Support Dashboard</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #e2e8f0; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .card {
+    background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+    padding: 36px 32px; width: 100%; max-width: 380px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+  }
+  h1 { margin: 0 0 6px; font-size: 22px; color: #f8fafc; font-weight: 600; }
+  .subtitle { margin: 0 0 24px; color: #94a3b8; font-size: 13px; }
+  label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type=password] {
+    width: 100%; padding: 12px 14px; background: #0f172a; color: #e2e8f0;
+    border: 1px solid #334155; border-radius: 8px; font-size: 15px; outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type=password]:focus { border-color: #38bdf8; }
+  button {
+    margin-top: 18px; width: 100%; padding: 12px; border: 0; border-radius: 8px;
+    background: #38bdf8; color: #0f172a; font-weight: 600; font-size: 15px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  button:hover { background: #7dd3fc; }
+  .error {
+    margin-top: 14px; padding: 10px 12px; background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.3); color: #fca5a5; border-radius: 8px;
+    font-size: 13px;
+  }
+  .brand { text-align: center; margin-bottom: 22px; font-size: 11px; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <form class="card" method="POST" action="/login{% if next and next != '/' %}?next={{ next }}{% endif %}">
+    <div class="brand">Solviva Energy</div>
+    <h1>Sales Support Dashboard</h1>
+    <p class="subtitle">Enter the team password to continue.</p>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" name="password" autofocus required autocomplete="current-password">
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Sign in</button>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  </form>
+</body>
+</html>"""
 
 # ── HTML template ─────────────────────────────────────────────────────────────
 HTML = """<!DOCTYPE html>
