@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: sales-support-dashboard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn sales_support_dashboard:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: ODOO_URL
+        value: https://solviva-energy.odoo.com
+      - key: ODOO_DB
+        value: solviva-energy
+      - key: ODOO_USER
+        sync: false
+      - key: ODOO_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.9

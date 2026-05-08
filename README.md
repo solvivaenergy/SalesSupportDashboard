@@ -80,6 +80,33 @@ The app holds an in-memory cache of SS team members; restart on team changes.
 
 ---
 
+## Deploy to Render (recommended — free tier works)
+
+This repo includes [`render.yaml`](render.yaml) for one-click deployment.
+
+1. Sign in at https://dashboard.render.com with the Solviva GitHub org account.
+2. Click **New → Blueprint** and select `solvivaenergy/SalesSupportDashboard`.
+3. Render reads `render.yaml` and provisions a web service. It will prompt for
+   the two **secret** env vars (marked `sync: false`):
+   - `ODOO_USER` — e.g. `alden.reyes@solvivaenergy.com`
+   - `ODOO_API_KEY` — generated in Odoo (see "Getting an Odoo API key" above)
+4. Click **Apply**. First build takes ~2 min. Subsequent deploys are automatic
+   on every `git push` to `main`.
+5. Render gives you a URL like `https://sales-support-dashboard.onrender.com`.
+
+**Free tier notes**
+- Service sleeps after 15 min of inactivity; first request after sleep takes
+  ~30 sec to wake. For an always-on dashboard, upgrade to the **Starter** plan
+  ($7/mo) or hit the URL with an uptime monitor.
+- Render auto-provisions HTTPS.
+
+**Restricting access** — Render free tier doesn't include built-in auth. Options:
+- Put Cloudflare in front and use Cloudflare Access (free for ≤50 users).
+- Add HTTP Basic Auth in Flask (10-line snippet, ask if you want it).
+- Upgrade to Render's Pro plan and use IP allowlists.
+
+---
+
 ## Configuration constants
 
 Edit the top of `sales_support_dashboard.py` to tune:

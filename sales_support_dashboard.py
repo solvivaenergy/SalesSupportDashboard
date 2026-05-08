@@ -1009,9 +1009,10 @@ setInterval(loadData, 5 * 60 * 1000);
 </html>"""
 
 if __name__ == "__main__":
+    port = int(os.getenv("PORT", "5100"))
     print("=" * 60)
     print("  Solviva Sales Support Dashboard")
     print(f"  Odoo: {URL}  DB: {DB}")
-    print("  Open: http://localhost:5100")
+    print(f"  Open: http://localhost:{port}")
     print("=" * 60)
-    app.run(host="0.0.0.0", port=5100, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)
